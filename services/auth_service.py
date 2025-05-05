@@ -1,7 +1,10 @@
 from models.user_model import User
 from schemas.user_schemas import UserRegisterSchema
-from utils.hashing import hash_password
+from schemas.login_schemas import UserLoginSchema
+from utils.hashing import hash_password, verify_password
+from utils.jwt import create_access_token
 
+# Registro
 async def register_user(data: UserRegisterSchema):
     if data.password != data.confirm_password:
         raise ValueError("Las contraseñas no coinciden")
@@ -23,3 +26,23 @@ async def register_user(data: UserRegisterSchema):
 
     await user.insert()
     return user
+
+# Login
+async def login_user(data: UserLoginSchema):
+    user = await User.find_one({
+        "$or": [{"username": data.username_or_email}, {"email": data.username_or_email}]
+    })
+
+    if not user:
+        raise ValueError("Usuario no encontrado")
+
+    if not verify_password(data.password, user.password):
+        raise ValueError("Contraseña incorrecta")
+
+    if user.role != "user":
+        raise ValueError("Acceso no autorizado para este login")
+
+    token_data = {"sub": str(user.id), "role": user.role}
+    token = create_access_token(token_data)
+
+    return token
