@@ -53,12 +53,49 @@ async def delete_quote(quote_id: str) -> bool:
     return True
 
 
-# Placeholder para cálculo de resumen (lo definimos después)
-async def calculate_summary(data: QuoteCreateSchema):
+def calculate_waste_percentage(used: float, total: float) -> float:
+    if total == 0:
+        return 0.0
+    waste = total - used
+    return (waste / total) * 100
+
+
+async def calculate_summary(data):
+    # datos base para calculo
+    model_weight = data.model.peso_modelo
+    support_weight = data.model.peso_soportes
+    filament_weight = data.filament.peso_total
+
+    # filamento usado
+    grams_used = model_weight + support_weight
+    grams_wasted = filament_weight - grams_used
+    waste_percentage = calculate_waste_percentage(grams_used, filament_weight)
+
+    # costo
+    hours = data.model.tiempo_impresion
+    energy_cost = hours * (data.printer.watts / 1000) * data.energy.costo_kwh
+    printing_cost = hours * data.commercial.costo_hora
+
+    subtotal = energy_cost + printing_cost + data.commercial.mano_obra + data.commercial.postprocesado
+    subtotal_with_margin = subtotal * (1 + data.commercial.margen)
+    total_cost = subtotal_with_margin * (1 + data.commercial.impuestos)
+
+    # Sugerencias
+    suggestions = []
+    if data.model.infill > 50:
+        suggestions.append("Reduce infill: it's above 50%")
+    if data.model.soportes and data.model.tipo_soporte == "árbol":
+        suggestions.append("Consider avoiding tree supports if possible")
+    if data.model.altura_capa > 0.3:
+        suggestions.append("Reduce layer height to improve print quality")
+    if waste_percentage > 20:
+        suggestions.append("Optimize supports or adjust model weight")
+
     return {
-        "costo_total_estimado": 0,
-        "gramos_usados": 0,
-        "gramos_desechados": 0,
-        "porcentaje_desecho": 0,
-        "sugerencias": []
+        "grams_used": grams_used,
+        "grams_wasted": grams_wasted,
+        "waste_percentage": waste_percentage,
+        "estimated_total_cost": round(total_cost, 2),
+        "suggestions": suggestions
     }
+
