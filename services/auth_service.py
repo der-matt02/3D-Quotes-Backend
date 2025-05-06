@@ -3,6 +3,8 @@ from schemas.user_schemas import UserRegisterSchema
 from schemas.login_schemas import UserLoginSchema
 from utils.hashing import hash_password, verify_password
 from utils.jwt import create_access_token
+from schemas.login_schemas import AdminLoginSchema
+from schemas.login_schemas import SuperAdminLoginSchema
 
 # Registro
 async def register_user(data: UserRegisterSchema):
@@ -46,3 +48,37 @@ async def login_user(data: UserLoginSchema):
     token = create_access_token(token_data)
 
     return token
+
+async def login_admin(data: AdminLoginSchema):
+    user = await User.find_one({
+        "$or": [{"username": data.username_or_email}, {"email": data.username_or_email}]
+    })
+
+    if not user:
+        raise ValueError("Admin not found")
+
+    if not verify_password(data.password, user.password):
+        raise ValueError("Incorrect password")
+
+    if user.role != "admin":
+        raise ValueError("Access denied: not an admin")
+
+    token_data = {"sub": str(user.id), "role": user.role}
+    return create_access_token(token_data)
+
+async def login_superadmin(data: SuperAdminLoginSchema):
+    user = await User.find_one({
+        "$or": [{"username": data.username_or_email}, {"email": data.username_or_email}]
+    })
+
+    if not user:
+        raise ValueError("Superadmin not found")
+
+    if not verify_password(data.password, user.password):
+        raise ValueError("Incorrect password")
+
+    if user.role != "superadmin":
+        raise ValueError("Access denied: not a superadmin")
+
+    token_data = {"sub": str(user.id), "role": user.role}
+    return create_access_token(token_data)
