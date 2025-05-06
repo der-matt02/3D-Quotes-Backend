@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from core.database import initiate_database
 from api import auth
 from api import quotes
+from api import admin_manage
 
 app = FastAPI()
 
@@ -12,3 +13,4 @@ async def startup_event():
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(quotes.router, prefix="/api/quotes", tags=["quotes"])
+app.include_router(admin_manage.router, prefix="/api/admin_create", tags=["admin"])
